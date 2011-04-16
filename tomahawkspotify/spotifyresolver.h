@@ -27,6 +27,8 @@
 #define tomahawkspotify_H
 
 #include <libspotify/api.h>
+#include "QxtHttpServerConnector"
+#include "qxthttpsessionmanager.h"
 
 #include <QCoreApplication>
 #include <QTimer>
@@ -38,6 +40,7 @@
 
 #define sApp static_cast< SpotifyResolver* >( QCoreApplication::instance() )
 
+class QxtHttpSessionManager;
 struct AudioData;
 class AudioHTTPServer;
 class ConsoleWatcher;
@@ -77,11 +80,12 @@ public:
     bool trackIsOver();
 
     sp_session* session() const { return m_session; }
-    AudioHTTPServer* server() const { return m_server; }
+    AudioHTTPServer* handler() const { return m_handler; }
 
     void sendMessage( const QVariant& v );
 
     static QString dataDir();
+
 private slots:
     void notifyMainThread();
     void playdarMessage( const QVariant& );
@@ -99,7 +103,10 @@ private:
 
     QThread m_stdinThread;
     ConsoleWatcher* m_stdinWatcher;
-    AudioHTTPServer* m_server;
+
+    QxtHttpServerConnector m_connector;
+    QxtHttpSessionManager m_httpS;
+    AudioHTTPServer* m_handler;
 
     QMutex m_dataMutex;
     QWaitCondition m_dataWaitCondition;

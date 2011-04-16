@@ -25,92 +25,33 @@
 
 
 #include "audiohttpserver.h"
+#include "QxtWebPageEvent"
 
-#include <QTcpServer>
-#include "audiohttpworker.h"
-
-AudioHTTPServer::AudioHTTPServer(QObject* parent)
-    : QTcpServer( parent )
-    , m_curthread( 0 )
-    , m_worker( 0 )
+#include <QDebug>
+AudioHTTPServer::AudioHTTPServer( QxtAbstractWebSessionManager* sm, int port, QObject* parent )
+    : QxtWebSlotService( sm, parent )
+    , m_port( port )
 {
-    listen( QHostAddress::Any );
+    qDebug() << "NEW AUDIO HTTP SERVER!";
+}
+
+
+void AudioHTTPServer::sid(QxtWebRequestEvent* event, QString a)
+{
+    qDebug() << "HTTP" << event->url.toString() << a;
+
 }
 
 AudioHTTPServer::~AudioHTTPServer()
 {
-    if( m_worker )
-        m_worker->deleteLater();
 
-    if( m_curthread ) {
-        m_curthread->terminate();
-        delete m_curthread;
-    }
 }
 
 
 QString AudioHTTPServer::urlForID( const QString& id )
 {
-    return QString( "http://localhost:%1/%2.wav" ).arg( serverPort() ).arg( id );
+    return QString( "http://localhost:%1/sid/%2.wav" ).arg( m_port ).arg( id );
 }
-
-
-void AudioHTTPServer::incomingConnection( int handle )
-{
-    qDebug() << "Got incoming connection!";
-    qDebug() << "current status:" << m_worker << m_curthread;
-    if( m_worker && m_curthread ) {
-        qDebug() << "got new connection and have still existing open connection:" << m_worker << m_curthread;
-        m_worker->stop();
-        QMetaObject::invokeMethod( m_worker, "forceStop", Qt::QueuedConnection );
-
-        connect( m_worker, SIGNAL( finished() ), m_worker, SLOT( deleteLater() ), Qt::UniqueConnection );
-        connect( m_worker, SIGNAL( destroyed( QObject* ) ), m_curthread, SLOT( quit() ), Qt::UniqueConnection );
-        connect( m_curthread, SIGNAL( finished() ), m_curthread, SLOT( deleteLater() ), Qt::UniqueConnection );
-
-    }
-    qDebug() << "Destroyed old thread! starting next....";
-
-    m_curthread = new QThread;
-    m_worker = new AudioHTTPWorker( handle, 0 );
-
-    m_worker->moveToThread( m_curthread );
-    QMetaObject::invokeMethod( m_worker, "init", Qt::QueuedConnection );
-
-    qDebug() << "kicking off next worker thread...";
-    m_curthread->start();
-
-/*
-    if( !m_worker && !m_curthread ) {
-        qDebug() << "Starting directly since no existing connection to kill first:" << m_worker << m_curthread;
-        startNextWorker();
-    }*/
-}
-/*
-void AudioHTTPServer::startNextWorker()
-{
-    qDebug() << Q_FUNC_INFO << "Starting next worker!";
-    if( m_curthread ) {
-        delete m_curthread;
-        m_curthread = 0;
-    }
-
-    if( !m_nextWorker ) {
-        qWarning() << Q_FUNC_INFO << "BAD NEWS BEARS, next worker deleted under us!";
-        return;
-    }
-
-    m_curthread = new QThread;
-    m_worker = m_nextWorker;
-
-    m_worker->moveToThread( m_curthread );
-    QMetaObject::invokeMethod( m_worker, "init", Qt::QueuedConnection );
-
-    qDebug() << "kicking off next worker thread...";
-    m_curthread->start();
-
-    m_nextWorker = 0;
-}*/
 
 
 #include "audiohttpserver.moc"

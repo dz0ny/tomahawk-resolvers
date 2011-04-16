@@ -29,6 +29,7 @@
 #include "spotify_key.h"
 #include "consolewatcher.h"
 #include "callbacks.h"
+#include "qxthttpsessionmanager.h"
 
 #include <libspotify/api.h>
 #include "qjson/parser.h"
@@ -138,12 +139,18 @@ void setupLogfile()
 }
 
 
+QxtAbstractWebService*
+serviceFactory(QxtAbstractWebSessionManager* sm, int )
+{
+    return new AudioHTTPServer( sm, 123 );
+}
+
 
 SpotifyResolver::SpotifyResolver( int argc, char** argv )
     : QCoreApplication( argc, argv )
     , m_session( 0 )
     , m_stdinWatcher( 0 )
-    , m_server( 0 )
+    , m_handler( 0 )
     , m_loggedIn( false )
     , m_trackEnded( false )
 {
@@ -176,11 +183,22 @@ SpotifyResolver::SpotifyResolver( int argc, char** argv )
         qWarning() << "Failed to create spotify session: " << sp_error_message(err);
     }
 
-    m_server = new AudioHTTPServer;
+    m_httpS.setPort( 55050 ); //TODO config
+    m_httpS.setListenInterface( QHostAddress::LocalHost );
+    m_httpS.setConnector( &m_connector );
+    m_httpS.setAutoCreateSession( true );
+
+    m_handler = new AudioHTTPServer( &m_httpS, m_httpS.port() );
+    m_httpS.setServiceFactory( &serviceFactory );
+//     m_httpS.setStaticContentService( m_handler );
+
+    qDebug() << "Starting HTTPd on" << m_httpS.listenInterface().toString() << m_httpS.port();
+    m_httpS.start();
 
     loadSettings();
     sendConfWidget();
 }
+
 
 SpotifyResolver::~SpotifyResolver()
 {
