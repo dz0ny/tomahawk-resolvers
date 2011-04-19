@@ -28,9 +28,9 @@
 
 SpotifyIODevice::SpotifyIODevice( QObject* parent )
     : QIODevice( parent )
-    , curSum( 0 )
+    , m_curSum( 0 )
+    , m_done( false )
 {
-
 }
 
 SpotifyIODevice::~SpotifyIODevice()
@@ -41,36 +41,53 @@ SpotifyIODevice::~SpotifyIODevice()
 
 qint64 SpotifyIODevice::readData( char* data, qint64 maxlen )
 {
+    QMutexLocker l( &m_mutex );
+
     qint64 written = 0;
+
     while( !m_audioData.isEmpty() && written < maxlen ) {
-        qint64 next = m_audioData.front().second;
-        if( written + next >= maxlen )
+        qint64 next = m_audioData.first().second;
+        if( written + next > maxlen )
             return written;
 
         char* d = m_audioData.dequeue().first;
+        qMemCopy( data + written, d, next );
         written += next;
-        memcpy( data, d, next );
 
-        curSum -= next;
+        m_curSum -= next;
         free( d );
     }
 
-    Q_ASSERT( curSum == 0 );
+    Q_ASSERT( m_curSum == 0 || written == maxlen );
 
     return written;
 }
 
 qint64 SpotifyIODevice::writeData( const char* data, qint64 len )
 {
+    if( m_done ) {
+        // do nothing, just free the data
+        qFree( (char*)data );
+        return -1;
+    }
+    QMutexLocker l( &m_mutex );
     m_audioData.enqueue( QPair< char*, qint64 >( (char*)data, len ) );
-    curSum += len;
+    m_curSum += len;
 
     emit readyRead();
+
+    return m_curSum;
 }
 
 qint64 SpotifyIODevice::bytesAvailable() const
 {
-    return curSum;
+    return m_curSum;
+}
+
+void SpotifyIODevice::disconnected()
+{
+    m_done = true;
+    close();
 }
 
 

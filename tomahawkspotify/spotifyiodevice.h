@@ -28,6 +28,8 @@
 #include <QIODevice>
 #include <QQueue>
 #include <QPair>
+#include <QMutex>
+#include <QFile>
 
 class SpotifyIODevice : public QIODevice
 {
@@ -41,9 +43,13 @@ public:
     virtual qint64 bytesAvailable() const;
     virtual bool isSequential() const  { return true; }
 
+    void disconnected();
 private:
     QQueue< QPair< char* , qint64 > > m_audioData;
-    qint64 curSum;
+    qint64 m_curSum;
+    mutable QMutex m_mutex;
+
+    bool m_done;
 };
 
 #endif

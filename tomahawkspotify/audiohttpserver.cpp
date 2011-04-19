@@ -45,9 +45,13 @@ void AudioHTTPServer::sid( QxtWebRequestEvent* event, QString a )
 {
     qDebug() << "HTTP" << event->url.toString() << a;
 
+    if( !sApp->trackIsOver() ) {
+        sApp->endOfTrack();
+    }
+
     // the requested track
     QString uid = a.replace( ".wav", "");
-    qDebug() << thread() << "Beginning to stream requested track:" << uid;
+    qDebug() << QThread::currentThread() << "Beginning to stream requested track:" << uid;
     if( uid.isEmpty() || !sApp->hasLinkFromTrack( uid ) ) {
         qWarning() << "Did not find spotify track UID in our list!" << uid;
         sendErrorResponse( event );
@@ -60,32 +64,34 @@ void AudioHTTPServer::sid( QxtWebRequestEvent* event, QString a )
 
     sp_track* track = sp_link_as_track( link );
     if( !track ) {
-        qWarning() << thread() << "Uh oh... got null track from link :(" << sp_link_type( link );
+        qWarning() << QThread::currentThread() << "Uh oh... got null track from link :(" << sp_link_type( link );
         sendErrorResponse( event );
         return;
     }
     if( !sp_track_is_loaded( track ) ) {
-        qWarning() << thread() << "uh oh... track not loaded yet! Asked for:" << sp_track_name( track );
+        qWarning() << QThread::currentThread() << "uh oh... track not loaded yet! Asked for:" << sp_track_name( track );
         sendErrorResponse( event );
         return;
     }
 
     // yay we gots a track
-    qDebug() << thread() << "We got a track!" << sp_track_name( track ) << sp_artist_name( sp_track_artist( track, 0 ) ) << sp_track_duration( track );
+    qDebug() << QThread::currentThread() << "We got a track!" << sp_track_name( track ) << sp_artist_name( sp_track_artist( track, 0 ) ) << sp_track_duration( track );
 //     uint duration = 16 * 44100 * sp_track_duration( track ) / 1000;
 
     sp_error err = sp_session_player_load( sApp->session(), track );
     if( err != SP_ERROR_OK ) {
-        qWarning() << thread() << "Failed to start track from spotify :(" << sp_error_message( err );
+        qWarning() << QThread::currentThread() << "Failed to start track from spotify :(" << sp_error_message( err );
         sendErrorResponse( event );
         return;
     }
 
+    qDebug() << QThread::currentThread() << "Starting to play!";
     sp_session_player_play( sApp->session(), true );
     sApp->startPlaying();
 
+    qDebug() << "Getting iodevice...";
     spotifyiodev_ptr iodev = sApp->getIODeviceForCurTrack();
-
+    qDebug()  << QThread::currentThread() << "Got iodevice to send:" << iodev << iodev.isNull() << iodev->isSequential() << iodev->isReadable();
     QxtWebPageEvent* wpe = new QxtWebPageEvent( event->sessionID, event->requestID, iodev );
     wpe->streaming = true;
     wpe->contentType = "audio/basic";

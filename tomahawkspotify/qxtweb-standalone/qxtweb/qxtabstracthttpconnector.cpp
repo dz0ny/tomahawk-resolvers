@@ -28,7 +28,7 @@
 
 \inmodule QxtWeb
 
-\brief The QxtAbstractHttpConnector class is a base class for defining 
+\brief The QxtAbstractHttpConnector class is a base class for defining
 HTTP-based protocols for use with QxtHttpSessionManager
 
 QxtHttpSessionManager does the work of managing sessions and state for the
@@ -47,6 +47,7 @@ headers (by implementing writeHeaders(QIODevice*, const QHttpResponseHeader&)).
 
 #include "qxthttpsessionmanager.h"
 #include "qxtwebcontent.h"
+#include "../../spotifyresolver.h"
 #include <QReadWriteLock>
 #include <QHash>
 #include <QIODevice>
@@ -80,6 +81,12 @@ public:
     {
         QWriteLocker locker(&requestLock);
         requests.remove(requestID);
+
+        if( dataSources.contains( requestID ) ) {
+            spotifyiodev_ptr p = dataSources[ requestID ].dynamicCast< SpotifyIODevice >();
+            if( !p.isNull() )
+                p->disconnected();
+        }
         dataSources.remove(requestID);
     }
 
