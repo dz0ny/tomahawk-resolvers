@@ -71,13 +71,8 @@ public:
 
     // audio data stuff
     QMutex& dataMutex();
-//     QWaitCondition& dataWaitCond();
     // only call if you are holding the dataMutex() from above
     void queueData( const AudioData& data );
-//     AudioData getData();
-//     void clearData();
-//     bool hasData() const;
-
     // will emit readyRead() when it has data.
     spotifyiodev_ptr getIODeviceForCurTrack();
 
@@ -118,7 +113,6 @@ private:
     spotifyiodev_ptr m_iodev;
 
     QMutex m_dataMutex;
-//     QWaitCondition m_dataWaitCondition;
 
     sp_session_config m_config;
     sp_session *m_session;

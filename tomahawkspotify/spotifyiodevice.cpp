@@ -87,7 +87,10 @@ qint64 SpotifyIODevice::bytesAvailable() const
 void SpotifyIODevice::disconnected()
 {
     m_done = true;
-    close();
+
+    m_curSum = 0;
+    while( !m_audioData.isEmpty() )
+        qFree( m_audioData.dequeue().first );
 }
 
 
