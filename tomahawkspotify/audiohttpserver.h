@@ -30,6 +30,8 @@
 #include <QObject>
 #include "qxtwebslotservice.h"
 
+class QxtWebRequestEvent;
+class QxtWebPageEvent;
 
 class AudioHTTPServer : public QxtWebSlotService
 {
@@ -42,7 +44,10 @@ public:
 
 public slots:
     void sid(QxtWebRequestEvent* event, QString a);
+
 private:
+    void sendErrorResponse( QxtWebRequestEvent* event );
+
     int m_port;
 };
 

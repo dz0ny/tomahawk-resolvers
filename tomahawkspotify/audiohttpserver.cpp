@@ -25,9 +25,14 @@
 
 
 #include "audiohttpserver.h"
-#include "QxtWebPageEvent"
 
+#include "spotifyresolver.h"
+#include "QxtWebPageEvent"
+#include "spotifyiodevice.h"
+
+#include <QString>
 #include <QDebug>
+
 AudioHTTPServer::AudioHTTPServer( QxtAbstractWebSessionManager* sm, int port, QObject* parent )
     : QxtWebSlotService( sm, parent )
     , m_port( port )
@@ -36,9 +41,55 @@ AudioHTTPServer::AudioHTTPServer( QxtAbstractWebSessionManager* sm, int port, QO
 }
 
 
-void AudioHTTPServer::sid(QxtWebRequestEvent* event, QString a)
+void AudioHTTPServer::sid( QxtWebRequestEvent* event, QString a )
 {
     qDebug() << "HTTP" << event->url.toString() << a;
+
+    // the requested track
+    QString uid = a.replace( ".wav", "");
+    qDebug() << thread() << "Beginning to stream requested track:" << uid;
+    if( uid.isEmpty() || !sApp->hasLinkFromTrack( uid ) ) {
+        qWarning() << "Did not find spotify track UID in our list!" << uid;
+        sendErrorResponse( event );
+
+        return;
+    }
+
+    // get the sp_track
+    sp_link* link = sApp->linkFromTrack( uid );
+
+    sp_track* track = sp_link_as_track( link );
+    if( !track ) {
+        qWarning() << thread() << "Uh oh... got null track from link :(" << sp_link_type( link );
+        sendErrorResponse( event );
+        return;
+    }
+    if( !sp_track_is_loaded( track ) ) {
+        qWarning() << thread() << "uh oh... track not loaded yet! Asked for:" << sp_track_name( track );
+        sendErrorResponse( event );
+        return;
+    }
+
+    // yay we gots a track
+    qDebug() << thread() << "We got a track!" << sp_track_name( track ) << sp_artist_name( sp_track_artist( track, 0 ) ) << sp_track_duration( track );
+//     uint duration = 16 * 44100 * sp_track_duration( track ) / 1000;
+
+    sp_error err = sp_session_player_load( sApp->session(), track );
+    if( err != SP_ERROR_OK ) {
+        qWarning() << thread() << "Failed to start track from spotify :(" << sp_error_message( err );
+        sendErrorResponse( event );
+        return;
+    }
+
+    sp_session_player_play( sApp->session(), true );
+    sApp->startPlaying();
+
+    spotifyiodev_ptr iodev = sApp->getIODeviceForCurTrack();
+
+    QxtWebPageEvent* wpe = new QxtWebPageEvent( event->sessionID, event->requestID, iodev );
+    wpe->streaming = true;
+    wpe->contentType = "audio/basic";
+    postEvent( wpe );
 
 }
 
@@ -51,6 +102,16 @@ AudioHTTPServer::~AudioHTTPServer()
 QString AudioHTTPServer::urlForID( const QString& id )
 {
     return QString( "http://localhost:%1/sid/%2.wav" ).arg( m_port ).arg( id );
+}
+
+void
+AudioHTTPServer::sendErrorResponse( QxtWebRequestEvent* event )
+{
+    qDebug() << "404" << event->url.toString();
+    QxtWebPageEvent* wpe = new QxtWebPageEvent( event->sessionID, event->requestID, "<h1>No Such Track</h1>" );
+    wpe->status = 403;
+    wpe->statusMessage = "no track found";
+    postEvent( wpe );
 }
 
 

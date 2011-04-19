@@ -48,6 +48,7 @@
 #include <fstream>
 #include "audiohttpserver.h"
 #include <QDateTime>
+#include "spotifyiodevice.h"
 
 namespace SpotifyCallbacks {
 
@@ -138,14 +139,6 @@ void setupLogfile()
     qInstallMsgHandler( LogHandler );
 }
 
-
-QxtAbstractWebService*
-serviceFactory(QxtAbstractWebSessionManager* sm, int )
-{
-    return new AudioHTTPServer( sm, 123 );
-}
-
-
 SpotifyResolver::SpotifyResolver( int argc, char** argv )
     : QCoreApplication( argc, argv )
     , m_session( 0 )
@@ -186,17 +179,18 @@ SpotifyResolver::SpotifyResolver( int argc, char** argv )
     m_httpS.setPort( 55050 ); //TODO config
     m_httpS.setListenInterface( QHostAddress::LocalHost );
     m_httpS.setConnector( &m_connector );
-    m_httpS.setAutoCreateSession( true );
 
     m_handler = new AudioHTTPServer( &m_httpS, m_httpS.port() );
-    m_httpS.setServiceFactory( &serviceFactory );
-//     m_httpS.setStaticContentService( m_handler );
+    m_httpS.setStaticContentService( m_handler );
 
     qDebug() << "Starting HTTPd on" << m_httpS.listenInterface().toString() << m_httpS.port();
     m_httpS.start();
 
     loadSettings();
     sendConfWidget();
+
+    // testing
+    search( "123", "u2", "one" );
 }
 
 
@@ -369,17 +363,32 @@ QMutex& SpotifyResolver::dataMutex()
 {
     return m_dataMutex;
 }
-
+/*
 QWaitCondition& SpotifyResolver::dataWaitCond()
 {
     return m_dataWaitCondition;
+}*/
+
+spotifyiodev_ptr SpotifyResolver::getIODeviceForCurTrack()
+{
+    if( m_iodev.isNull() ) {
+        m_iodev = spotifyiodev_ptr( new SpotifyIODevice );
+//         m_iodev->open( QIODevice::ReadWrite );
+    }
+
 }
+
 
 void SpotifyResolver::queueData( const AudioData& data )
 {
-    m_audioData.enqueue( data );
-}
+    if( m_iodev.isNull() ) {
+        m_iodev = spotifyiodev_ptr( new SpotifyIODevice );
+        m_iodev->open( QIODevice::ReadWrite );
+    }
 
+    m_iodev->writeData( (const char*)data.data, data.numFrames * 4 ); // 4 == channels * ( bits per sample / 8 ) == 2 * ( 16 / 8 ) == 2 * 2
+}
+/*
 AudioData SpotifyResolver::getData()
 {
     return m_audioData.dequeue();
@@ -397,7 +406,7 @@ void SpotifyResolver::clearData()
 bool SpotifyResolver::hasData() const
 {
     return !m_audioData.isEmpty();
-}
+}*/
 
 void SpotifyResolver::startPlaying()
 {
@@ -407,6 +416,10 @@ void SpotifyResolver::startPlaying()
 
 void SpotifyResolver::endOfTrack()
 {
+    if( !m_iodev.isNull() ) {
+        m_iodev->close();
+        m_iodev.clear();
+    }
     m_trackEnded = true;
 }
 

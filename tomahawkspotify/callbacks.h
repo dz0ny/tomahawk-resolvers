@@ -138,7 +138,7 @@ static int musicDelivery(sp_session *session, const sp_audioformat *format, cons
     d.sampleRate = format->sample_rate;
     sApp->queueData( d );
     m.unlock();
-    sApp->dataWaitCond().wakeAll();
+//     sApp->dataWaitCond().wakeAll();
 
     return numFrames;
 }
