@@ -39,13 +39,14 @@ SpotifyIODevice::~SpotifyIODevice()
         close();
 }
 
-void SpotifyIODevice::setDurationMSec( uint msec )
+    void SpotifyIODevice::setDurationMSec( quint32 msec )
 {
-    uint numSamples = ( msec * 44100 ) / 1000;
-    uint dataChunkSize = numSamples * 2 * 2;
+    quint32 numSamples = ( (quint64)msec * Q_UINT64_C(44100) ) / (quint64)1000;
+    quint32 dataChunkSize = numSamples * 2 * 2;
+    qDebug() << "Writing number of samples and data chunk size:" << numSamples << dataChunkSize << "and msec:" << msec;
     // got samples, we can make the header now
     m_header += (const char* )"RIFF";
-    uint data = 36 + dataChunkSize;
+    quint32 data = 36 + dataChunkSize;
     m_header.append((char*)&data, 4); // The file size LESS the size of the "RIFF" description (4 bytes) and the size of file description (4 bytes). This is usually file size - 8, or 36 + subchunk2 size
     m_header += (const char* )"WAVE"; //The ascii text string "RIFF". mmsystem.h provides the macro FOURCC_RIFF for this purpose.
     /// fmt subchunk
@@ -126,10 +127,12 @@ qint64 SpotifyIODevice::bytesAvailable() const
 void SpotifyIODevice::disconnected()
 {
     m_done = true;
-
+    qDebug() << "spotifyiodevice disconnected -.-";
     m_curSum = 0;
     while( !m_audioData.isEmpty() )
         qFree( m_audioData.dequeue().first );
+
+
 }
 
 
