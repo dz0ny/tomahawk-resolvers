@@ -9,9 +9,9 @@ function getSettings()
 
 function resolve( qid, artist, album, track ){
 
-  var get = function (url) {
+  var get = function (url, force) {
       var cached = window.sessionStorage[url];
-      if (!cached) {
+      if (!cached || force) {
         var httpRequest = new XMLHttpRequest();
         httpRequest.open("GET", url, false);
         httpRequest.send(null);
@@ -27,7 +27,7 @@ function resolve( qid, artist, album, track ){
   var api="1442c0d04625c9d959527ae7d4a430afe9d2d1d9";
   var token = window.localStorage["play_token"];
   if (!token) {
-    token = window.localStorage["play_token"] = get("http://8tracks.com/sets/new.json?api_key="+api).play_token;
+    token = window.localStorage["play_token"] = get("http://8tracks.com/sets/new.json?api_key="+api, true).play_token;
   }
 
   var url = "http://8tracks.com/mixes.json?api_key="+api+"&per_page=1&sort=popular&q=";
@@ -36,7 +36,7 @@ function resolve( qid, artist, album, track ){
       url += artist.replace(" ","+");
   
   if (!window.localStorage[artist+album+track]) {
-    var res = get(url).mixes;
+    var res = get(url, true).mixes;
     if (res.length) {
       var mix = get("http://8tracks.com/sets/"+token+"/play.json?api_key="+api+"&mix_id="+res[0].id)
       var track = mix.set.track;

@@ -13,12 +13,13 @@ function resolve( qid, artist, album, track ){
   var cache = window.sessionStorage;
 
   var get = function (url) {
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"+url)
       var cached = window.sessionStorage[url];
       if (!cached) {
         var httpRequest = new XMLHttpRequest();
         httpRequest.open("GET", url, false);
         //httpRequest.setRequestHeader('User-Agent','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/534.30 (KHTML, like Gecko) Chrome/12.0.742.91 Safari/534.30');
-        //httpRequest.setRequestHeader('Host','hypem.com');
+        //httpRequest.setRequestHeader('Host','http://hypem.com/soundmanager2_flash9.swf'); //Referer:http://hypem.com/soundmanager2_flash9.swf
         //httpRequest.setRequestHeader('Referer','http://hypem.com/');
         //httpRequest.setRequestHeader('X-Prototype-Version','1.7');
         //httpRequest.setRequestHeader('X-Requested-With','XMLHttpRequest');
@@ -40,8 +41,8 @@ function resolve( qid, artist, album, track ){
   if(track != "" ){
     search += " "+track
   } 
-     
-  var data = get(api+encodeURI(search)+"?ax=1&ts=1307652360");
+ 
+  var data = get(api+encodeURI(search)+"/1/?ax=1&ts=1307815736");
   var tracks = /trackList\[document\.location\.href\]\.push\(\{([\W\w]+?)\}\)/ig;
   var trackString = tracks.exec(data);
   if (trackString) {
